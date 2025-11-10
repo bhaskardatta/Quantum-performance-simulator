@@ -1,0 +1,9 @@
+version: '3.8'
+
+services:
+  dashboard-app:
+    build: .
+    ports:
+      # Expose web dashboard on port 8080
+      - "8080:8080"
+    # No X11 or display setup needed - works everywhere!
