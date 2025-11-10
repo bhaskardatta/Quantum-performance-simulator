@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 import random
+import socket
 import statistics
 import threading
 import time
@@ -22,6 +23,15 @@ from server_classical import ClassicalServer
 from server_pqc import PQCServer
 
 ITERATIONS_PER_MODE = 50
+
+
+def _get_free_port() -> int:
+    """Find an available port dynamically."""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind(('', 0))
+        s.listen(1)
+        port = s.getsockname()[1]
+    return port
 
 
 def _simulate_network_penalties(
@@ -40,13 +50,16 @@ def measure_classical_handshake(
     latency_ms: float = 0.0,
     packet_loss_percent: float = 0.0,
     *,
-    port: int = 13000,
+    port: int = None,
 ) -> float:
     """Measure a single classical ECDH handshake with network simulation."""
-    server = ClassicalServer(host="127.0.0.1", port=port)
+    if port is None:
+        port = _get_free_port()
+    
+    server = ClassicalServer(host="0.0.0.0", port=port)
     server_thread = threading.Thread(target=server.start, daemon=True)
     server_thread.start()
-    time.sleep(0.05)
+    time.sleep(0.1)  # Give server more time to start
 
     client = ClassicalClient(host="127.0.0.1", port=port)
     try:
@@ -58,7 +71,8 @@ def measure_classical_handshake(
     finally:
         client.disconnect()
         server.stop()
-        server_thread.join(timeout=1.0)
+        server_thread.join(timeout=2.0)
+        time.sleep(0.05)  # Brief pause between tests
 
     return _simulate_network_penalties(elapsed_ms, latency_ms, packet_loss_percent)
 
@@ -67,13 +81,16 @@ def measure_pqc_handshake(
     latency_ms: float = 0.0,
     packet_loss_percent: float = 0.0,
     *,
-    port: int = 13001,
+    port: int = None,
 ) -> float:
     """Measure a single PQC handshake (Kyber768 + ML-DSA-65) with network simulation."""
-    server = PQCServer(host="127.0.0.1", port=port)
+    if port is None:
+        port = _get_free_port()
+    
+    server = PQCServer(host="0.0.0.0", port=port)
     server_thread = threading.Thread(target=server.start, daemon=True)
     server_thread.start()
-    time.sleep(0.05)
+    time.sleep(0.1)  # Give server more time to start
 
     client = PQCClient(host="127.0.0.1", port=port)
     try:
@@ -85,7 +102,8 @@ def measure_pqc_handshake(
     finally:
         client.disconnect()
         server.stop()
-        server_thread.join(timeout=1.0)
+        server_thread.join(timeout=2.0)
+        time.sleep(0.05)  # Brief pause between tests
 
     return _simulate_network_penalties(elapsed_ms, latency_ms, packet_loss_percent)
 
@@ -95,8 +113,8 @@ def measure_hybrid_handshake(
     packet_loss_percent: float = 0.0
 ) -> float:
     """Measure hybrid handshake (Classical + PQC sequential)."""
-    classical_time = measure_classical_handshake(latency_ms, packet_loss_percent, port=13002)
-    pqc_time = measure_pqc_handshake(latency_ms, packet_loss_percent, port=13003)
+    classical_time = measure_classical_handshake(latency_ms, packet_loss_percent)
+    pqc_time = measure_pqc_handshake(latency_ms, packet_loss_percent)
     return classical_time + pqc_time
 
 
