@@ -18,12 +18,13 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application files
 COPY . .
 
-# Expose port for Hugging Face Spaces (7860 is standard)
-EXPOSE 7860
+# Expose port
+EXPOSE 8080
 
 # Set environment variables
 ENV FLASK_APP=web_dashboard.py
 ENV PYTHONUNBUFFERED=1
+ENV PORT=8080
 
 # Run the web dashboard
 CMD ["python", "web_dashboard.py"]
